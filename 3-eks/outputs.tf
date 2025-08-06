@@ -11,3 +11,7 @@ output "eks_cluster_endpoint" {
   description = "The endpoint for the EKS cluster's API server."
   value       = aws_eks_cluster.main.endpoint
 }
+
+output "ugp_backend_sa_role_arn" {
+  value = aws_iam_role.ugp_backend_sa_role.arn
+}
