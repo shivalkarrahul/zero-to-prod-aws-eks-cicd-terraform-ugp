@@ -1,0 +1,29 @@
+# --- Terraform State & Configuration ---
+
+# Ignore the .terraform directory, which contains temporary files and provider plugins.
+.terraform/
+
+# Ignore local Terraform state files. We are using a remote S3 backend,
+# so we should never commit local state files.
+*.tfstate
+*.tfstate.backup
+
+# Ignore plan files, as they can be large and are specific to a single plan.
+*.tfplan
+
+# Ignore Terraform crash logs.
+crash.log
+
+# Ignore provider cache, which can be large.
+.terraform.lock.hcl
+
+# Ignore the generated .tfvars file, which may contain sensitive data.
+# This is a common practice if you use a CI/CD pipeline to inject variables.
+*.tfvars
+
+# --- Editor and IDE Files ---
+
+# Ignore common editor and IDE files
+.idea/
+.vscode/
+.DS_Store
