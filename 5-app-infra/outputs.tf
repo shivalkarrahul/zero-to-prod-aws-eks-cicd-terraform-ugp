@@ -16,3 +16,8 @@ output "dynamodb_messages_table_name" {
   description = "The name of the DynamoDB table for application messages."
   value       = aws_dynamodb_table.messages.name
 }
+
+output "frontend_ui_bucket_arn" {
+  description = "The ARN of the S3 bucket for the frontend UI."
+  value       = aws_s3_bucket.frontend_ui.arn
+}
