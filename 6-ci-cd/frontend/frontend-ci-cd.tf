@@ -69,13 +69,10 @@ resource "aws_iam_role_policy" "frontend_pipeline_policy" {
       },
       {
         Action = [
-          "codecommit:GetBranch",
-          "codecommit:GetCommit",
-          "codecommit:GetRepository",
-          "codecommit:ListBranches"
+          "codestar-connections:UseConnection"
         ],
         Effect   = "Allow",
-        Resource = "arn:aws:codecommit:${var.aws_region}:*:*"
+        Resource = aws_codestarconnections_connection.github_connection.arn
       },
       {
         Action = [
