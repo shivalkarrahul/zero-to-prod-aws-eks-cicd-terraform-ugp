@@ -23,7 +23,7 @@ resource "aws_iam_openid_connect_provider" "ugp_eks_oidc" {
 
 # Create a dedicated IAM policy for our application
 resource "aws_iam_policy" "ugp_backend_ecr_pull" {
-  name        = "ugp-backend-ecr-pull-policy"
+  name        = "ugp-backend-ecr-pull-dynamodb-policy"
   description = "Allows the backend service account to pull from ECR and access DynamoDB"
   policy = jsonencode({
     Version = "2012-10-17"
@@ -50,7 +50,7 @@ resource "aws_iam_policy" "ugp_backend_ecr_pull" {
           "dynamodb:Query"
         ]
         # IMPORTANT: Restrict this to your specific DynamoDB table ARN
-        Resource = "arn:aws:dynamodb:us-east-1:064827688814:table/ugp-messages-table"
+        Resource = "arn:aws:dynamodb:us-east-1:064827688814:table/ugp-eks-cicd-messages-table"
       }
     ]
   })
