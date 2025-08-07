@@ -49,7 +49,7 @@ resource "aws_eks_node_group" "main" {
   node_group_name = "${var.project_name}-node-group"
   node_role_arn   = data.terraform_remote_state.iam.outputs.eks_node_group_role_arn
   subnet_ids      = data.terraform_remote_state.vpc.outputs.private_subnet_ids
-  instance_types  = ["t3.medium"]
+  instance_types  = ["t3.micro"]
 
   scaling_config {
     desired_size = 2
