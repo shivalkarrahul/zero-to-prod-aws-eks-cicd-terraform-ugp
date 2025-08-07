@@ -174,16 +174,14 @@ resource "aws_iam_role_policy" "backend_build_policy" {
           "${aws_s3_bucket.backend_codepipeline_artifacts.arn}/*"
         ]
       },
-      # !! NEW STATEMENT for ECR registry-level permission !!
+      # Permissions for ECR registry-level action
       {
-        # Permission for ecr:GetAuthorizationToken is a registry-level action
         Action   = ["ecr:GetAuthorizationToken"],
         Effect   = "Allow",
         Resource = "*"
       },
-      # !! UPDATED STATEMENT for ECR repository-level permissions !!
+      # Permissions for ECR repository-level actions
       {
-        # Permissions for ECR (pushing Docker images)
         Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:CompleteLayerUpload",
@@ -205,14 +203,6 @@ resource "aws_iam_role_policy" "backend_build_policy" {
         ],
         Effect = "Allow",
         Resource = data.terraform_remote_state.eks_cluster.outputs.eks_cluster_arn
-      },
-      {
-        # Permissions for Kubernetes API interaction (helm upgrade --install)
-        Action = [
-          "kubernetes:*"
-        ],
-        Effect = "Allow",
-        Resource = "*" # Broad access for demo purposes, refine for production
       }
     ]
   })
