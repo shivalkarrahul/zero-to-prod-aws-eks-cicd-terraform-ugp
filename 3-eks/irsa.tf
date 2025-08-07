@@ -22,9 +22,9 @@ resource "aws_iam_openid_connect_provider" "ugp_eks_oidc" {
 }
 
 # Create a dedicated IAM policy for our application
-resource "aws_iam_policy" "ugp_backend_ecr_pull" {
-  name        = "ugp-backend-ecr-pull-dynamodb-policy"
-  description = "Allows the backend service account to pull from ECR and access DynamoDB"
+resource "aws_iam_policy" "ugp_backend_policy" {
+  name        = "ugp-backend-ecr-dynamodb-bedrock-policy"
+  description = "Allows the backend service account to pull from ECR, access DynamoDB, and use Bedrock"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -38,7 +38,7 @@ resource "aws_iam_policy" "ugp_backend_ecr_pull" {
         ]
         Resource = "*" # ECR actions are typically global
       },
-      # ADDED: DynamoDB permissions for Get, Put, Update, Delete, Scan, Query
+      # Permissions for DynamoDB access
       {
         Effect = "Allow"
         Action = [
@@ -51,6 +51,14 @@ resource "aws_iam_policy" "ugp_backend_ecr_pull" {
         ]
         # IMPORTANT: Restrict this to your specific DynamoDB table ARN
         Resource = "arn:aws:dynamodb:us-east-1:064827688814:table/ugp-eks-cicd-messages-table"
+      },
+      # ADDED: Permissions for Amazon Bedrock
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel"
+        ]
+        Resource = "*" # Bedrock actions are typically global
       }
     ]
   })
@@ -78,8 +86,8 @@ resource "aws_iam_role" "ugp_backend_sa_role" {
   })
 }
 
-# Attach the ECR policy to the role
+# Attach the policy to the role
 resource "aws_iam_role_policy_attachment" "ugp_backend_sa_policy_attach" {
   role       = aws_iam_role.ugp_backend_sa_role.name
-  policy_arn = aws_iam_policy.ugp_backend_ecr_pull.arn
+  policy_arn = aws_iam_policy.ugp_backend_policy.arn
 }
