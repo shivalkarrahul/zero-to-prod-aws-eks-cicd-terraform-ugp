@@ -39,7 +39,7 @@ variable "backend_helm_chart_path" {
 }
 
 variable "backend_helm_release_name" {
-  description = "The Helm release name for the backend application (e.g., 'funny-quote-backend-release')."
+  description = "The Helm release name for the backend application."
   type        = string
-  default     = "funny-quote-backend-release"
+  default     = "ugp-backend"
 }
