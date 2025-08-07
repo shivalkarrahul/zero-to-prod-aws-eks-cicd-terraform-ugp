@@ -35,11 +35,6 @@ data "terraform_remote_state" "ecr_repo" {
   }
 }
 
-# Get the CodeStar Connection ARN (defined in connection.tf for backend)
-#data "aws_codestarconnections_connection" "backend_github_connection" {
-#  name = "${var.project_name}-backend-github-connection" # Matches the name in backend/connection.tf
-#}
-
 # Data source for current AWS account ID, needed for CloudWatch Logs ARN and ECR URI
 data "aws_caller_identity" "current" {}
 
@@ -98,8 +93,8 @@ resource "aws_iam_role_policy" "backend_pipeline_policy" {
         ],
         Effect = "Allow",
         Resource = [
-          aws_s3_bucket.backend_codepipeline_artifacts.arn, # !! IMPORTANT: Referencing the NEW dedicated backend artifact bucket !!
-          "${aws_s3_bucket.backend_codepipeline_artifacts.arn}/*" # !! IMPORTANT: Referencing the NEW dedicated backend artifact bucket !!
+          aws_s3_bucket.backend_codepipeline_artifacts.arn,
+          "${aws_s3_bucket.backend_codepipeline_artifacts.arn}/*"
         ]
       },
       {
@@ -108,7 +103,7 @@ resource "aws_iam_role_policy" "backend_pipeline_policy" {
           "codestar-connections:UseConnection"
         ],
         Effect   = "Allow",
-        Resource = aws_codestarconnections_connection.backend_github_connection.arn
+        Resource = aws_codestarconnections_connection.backend_github_connection.arn # Directly referencing the resource
       },
       {
         # Permissions to start and monitor CodeBuild projects
@@ -175,10 +170,18 @@ resource "aws_iam_role_policy" "backend_build_policy" {
         ],
         Effect   = "Allow",
         Resource = [
-          aws_s3_bucket.backend_codepipeline_artifacts.arn, # !! IMPORTANT: Referencing the NEW dedicated backend artifact bucket !!
-          "${aws_s3_bucket.backend_codepipeline_artifacts.arn}/*" # !! IMPORTANT: Referencing the NEW dedicated backend artifact bucket !!
+          aws_s3_bucket.backend_codepipeline_artifacts.arn,
+          "${aws_s3_bucket.backend_codepipeline_artifacts.arn}/*"
         ]
       },
+      # !! NEW STATEMENT for ECR registry-level permission !!
+      {
+        # Permission for ecr:GetAuthorizationToken is a registry-level action
+        Action   = ["ecr:GetAuthorizationToken"],
+        Effect   = "Allow",
+        Resource = "*"
+      },
+      # !! UPDATED STATEMENT for ECR repository-level permissions !!
       {
         # Permissions for ECR (pushing Docker images)
         Action = [
@@ -187,8 +190,7 @@ resource "aws_iam_role_policy" "backend_build_policy" {
           "ecr:GetDownloadUrlForLayer",
           "ecr:InitiateLayerUpload",
           "ecr:PutImage",
-          "ecr:UploadLayerPart",
-          "ecr:GetAuthorizationToken" # Needed for docker login
+          "ecr:UploadLayerPart"
         ],
         Effect   = "Allow",
         Resource = data.terraform_remote_state.ecr_repo.outputs.repository_arn
@@ -284,7 +286,7 @@ resource "aws_codepipeline" "backend_pipeline" {
   role_arn = aws_iam_role.backend_pipeline_role.arn
 
   artifact_store {
-    location = aws_s3_bucket.backend_codepipeline_artifacts.bucket # !! IMPORTANT: Referencing the NEW dedicated backend artifact bucket !!
+    location = aws_s3_bucket.backend_codepipeline_artifacts.bucket
     type     = "S3"
   }
 
@@ -299,7 +301,7 @@ resource "aws_codepipeline" "backend_pipeline" {
       output_artifacts = ["SourceArtifact"]
 
       configuration = {
-        ConnectionArn    = aws_codestarconnections_connection.backend_github_connection.arn
+        ConnectionArn    = aws_codestarconnections_connection.backend_github_connection.arn # Directly referencing the resource
         FullRepositoryId = var.backend_full_repo_id
         BranchName       = var.backend_repo_branch
       }
