@@ -21,3 +21,8 @@ output "eks_cluster_arn" {
   description = "The ARN of the EKS cluster."
   value       = aws_eks_cluster.main.arn # Assuming 'main' is your aws_eks_cluster resource name
 }
+
+output "cluster_certificate_authority_data" {
+  description = "Base64 encoded certificate data required to communicate with the cluster."
+  value       = aws_eks_cluster.main.certificate_authority.0.data
+}
