@@ -12,6 +12,17 @@ resource "aws_s3_bucket" "frontend_ui" {
   }
 }
 
+# 2. Use a data source to retrieve output values from the '03-eks' module's state.
+# This is the block that was missing. It connects to the *other* state file.
+data "terraform_remote_state" "eks_cluster" {
+  backend = "s3"
+  config = {
+    bucket = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket" # The bucket where '03-eks' stores its state
+    key    = "eks/terraform.tfstate" # The exact key of the '03-eks' state file
+    region = "us-east-1"
+  }
+}
+
 # Configure S3 for static website hosting
 resource "aws_s3_bucket_website_configuration" "frontend_ui_website" {
   bucket = aws_s3_bucket.frontend_ui.id
@@ -78,5 +89,21 @@ resource "aws_dynamodb_table" "messages" {
 
   tags = {
     Name = "${var.project_name}-messages-table"
+  }
+}
+
+# -----------------
+# SSM Parameter Store
+# -----------------
+
+# Creates an SSM Parameter to store the ingress-nginx load balancer hostname.
+# The frontend's CI/CD pipeline will retrieve this value and inject it into
+# the `App.js` configuration.
+resource "aws_ssm_parameter" "backend_api_host" {
+  name  = "/${var.project_name}/backend-api-host"
+  type  = "String"
+  value = data.terraform_remote_state.eks_cluster.outputs.ingress_nginx_lb_hostname
+  tags = {
+    Name = "${var.project_name}-backend-api-host"
   }
 }

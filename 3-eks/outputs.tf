@@ -26,3 +26,8 @@ output "cluster_certificate_authority_data" {
   description = "Base64 encoded certificate data required to communicate with the cluster."
   value       = aws_eks_cluster.main.certificate_authority.0.data
 }
+
+output "ingress_nginx_lb_hostname" {
+  description = "The hostname of the AWS Load Balancer created by the ingress-nginx controller."
+  value       = module.ingress_controller.ingress_nginx_lb_hostname
+}

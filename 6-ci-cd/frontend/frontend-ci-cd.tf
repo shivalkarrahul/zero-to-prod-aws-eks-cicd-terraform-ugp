@@ -15,6 +15,13 @@ data "terraform_remote_state" "app_infra" {
   }
 }
 
+# Add a data source to retrieve the value of the SSM parameter
+# that was created in the `05-app-infra` module.
+data "aws_ssm_parameter" "backend_api_host" {
+  name = "/${var.project_name}/backend-api-host"
+}
+
+
 # ----------------
 # CodePipeline S3 Artifact Bucket
 # ----------------
@@ -136,7 +143,12 @@ resource "aws_iam_role_policy" "frontend_build_policy" {
           aws_s3_bucket.codepipeline_artifacts.arn,
           "${aws_s3_bucket.codepipeline_artifacts.arn}/*"
         ]
-      }
+      },
+      {
+        Action   = "ssm:GetParameter",
+        Effect   = "Allow",
+        Resource = data.aws_ssm_parameter.backend_api_host.arn
+      }      
     ]
   })
 }
@@ -165,7 +177,16 @@ resource "aws_codebuild_project" "frontend_build" {
       name  = "S3_BUCKET_NAME"
       value = data.terraform_remote_state.app_infra.outputs.frontend_ui_bucket_name
     }
+
+    # New environment variable to pass the backend API host to the build.
+    environment_variable {
+      name  = "REACT_APP_API_HOST"
+      value = data.aws_ssm_parameter.backend_api_host.value
+    }
+
   }
+
+
 
   source {
     type      = "CODEPIPELINE"
