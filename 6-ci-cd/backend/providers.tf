@@ -13,11 +13,11 @@ terraform {
   required_version = "~> 1.5" # Ensure this matches your project's required Terraform version
 
   backend "s3" {
-    bucket         = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket" # !! IMPORTANT: Use your actual S3 backend bucket name !!
-    key            = "ci-cd/backend/terraform.tfstate" # Unique key for backend CI/CD state
-    region         = "us-east-1" # !! IMPORTANT: Use your actual backend region !!
-    encrypt        = true
-    use_lockfile   = true # Recommended for state locking
+    bucket       = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket" # !! IMPORTANT: Use your actual S3 backend bucket name !!
+    key          = "ci-cd/backend/terraform.tfstate"                   # Unique key for backend CI/CD state
+    region       = "us-east-1"                                         # !! IMPORTANT: Use your actual backend region !!
+    encrypt      = true
+    use_lockfile = true # Recommended for state locking
   }
 }
 

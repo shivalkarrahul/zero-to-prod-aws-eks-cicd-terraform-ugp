@@ -23,10 +23,10 @@ resource "aws_ecr_lifecycle_policy" "backend" {
     rules = [
       {
         rulePriority = 1,
-        description = "Expire untagged images",
+        description  = "Expire untagged images",
         selection = {
-          tagStatus = "untagged"
-          countType = "imageCountMoreThan"
+          tagStatus   = "untagged"
+          countType   = "imageCountMoreThan"
           countNumber = 1
         },
         action = {

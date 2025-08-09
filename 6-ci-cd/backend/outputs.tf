@@ -9,7 +9,7 @@ output "backend_codepipeline_url" {
 
 output "manual_configmap_update_instructions" {
   description = "Manual instructions to update the EKS 'aws-auth' ConfigMap with the new CodeBuild IAM role."
-  value = <<-EOT
+  value       = <<-EOT
   ==============================================================
   MANUAL STEP REQUIRED: UPDATE EKS 'aws-auth' CONFIGMAP
   ==============================================================

@@ -1,23 +1,29 @@
-# `terraform/03-eks/irsa.tf`
+# ==============================================================================
+# Corrected IRSA Configuration
+#
+# This file configures the IAM Role for Service Accounts (IRSA) for the EKS
+# cluster. The key change is to remove the data source lookup and instead
+# directly reference the 'aws_eks_cluster.main' resource.
+#
+# Terraform will now understand that it must first create the cluster before it
+# can create the dependent OIDC provider and IAM role.
+# ==============================================================================
 
-# Find the OIDC provider for our EKS cluster
-data "aws_eks_cluster" "ugp_eks" {
-  name = "ugp-eks-cicd-cluster"
-}
-
-# Find the OIDC provider certificate thumbprint from its URL
+# Find the OIDC provider certificate thumbprint from its URL.
+# This data source now depends on the actual EKS cluster resource.
 data "tls_certificate" "ugp_eks_oidc" {
-  url = data.aws_eks_cluster.ugp_eks.identity[0].oidc[0].issuer
+  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
 }
 
 # This is the resource that creates the OIDC Provider in IAM
 resource "aws_iam_openid_connect_provider" "ugp_eks_oidc" {
-  url = data.aws_eks_cluster.ugp_eks.identity[0].oidc[0].issuer
+  # Reference the newly created EKS cluster's OIDC issuer directly.
+  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
 
   # The audience list for the OIDC provider
   client_id_list = ["sts.amazonaws.com"]
 
-  # Corrected: Fetch the thumbprint from the tls_certificate data source
+  # Fetch the thumbprint from the tls_certificate data source
   thumbprint_list = [data.tls_certificate.ugp_eks_oidc.certificates[0].sha1_fingerprint]
 }
 
@@ -52,7 +58,7 @@ resource "aws_iam_policy" "ugp_backend_policy" {
         # IMPORTANT: Restrict this to your specific DynamoDB table ARN
         Resource = "arn:aws:dynamodb:us-east-1:064827688814:table/ugp-eks-cicd-messages-table"
       },
-      # ADDED: Permissions for Amazon Bedrock
+      # Permissions for Amazon Bedrock
       {
         Effect = "Allow"
         Action = [
@@ -78,7 +84,8 @@ resource "aws_iam_role" "ugp_backend_sa_role" {
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
           StringEquals = {
-            "${replace(data.aws_eks_cluster.ugp_eks.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:default:ugp-backend-service-account"
+            # Reference the newly created EKS cluster's OIDC issuer directly.
+            "${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:default:ugp-backend-service-account"
           }
         }
       }

@@ -27,7 +27,7 @@ data "aws_ssm_parameter" "backend_api_host" {
 # ----------------
 # This is a dedicated S3 bucket to store artifacts from the CodePipeline stages.
 resource "aws_s3_bucket" "codepipeline_artifacts" {
-  bucket = "${var.project_name}-codepipeline-artifacts"
+  bucket        = "${var.project_name}-codepipeline-artifacts"
   force_destroy = true # Useful for a demo to clean up easily
   tags = {
     Name = "${var.project_name}-codepipeline-artifacts"
@@ -136,7 +136,7 @@ resource "aws_iam_role_policy" "frontend_build_policy" {
           "s3:DeleteObject",
           "s3:ListBucket"
         ],
-        Effect   = "Allow",
+        Effect = "Allow",
         Resource = [
           data.terraform_remote_state.app_infra.outputs.frontend_ui_bucket_arn,
           "${data.terraform_remote_state.app_infra.outputs.frontend_ui_bucket_arn}/*",
@@ -148,7 +148,7 @@ resource "aws_iam_role_policy" "frontend_build_policy" {
         Action   = "ssm:GetParameter",
         Effect   = "Allow",
         Resource = data.aws_ssm_parameter.backend_api_host.arn
-      }      
+      }
     ]
   })
 }
@@ -171,7 +171,7 @@ resource "aws_codebuild_project" "frontend_build" {
     type                        = "LINUX_CONTAINER"
     privileged_mode             = false
     image_pull_credentials_type = "CODEBUILD"
-    
+
     # This is the corrected placement for the environment_variables block
     environment_variable {
       name  = "S3_BUCKET_NAME"
@@ -206,27 +206,27 @@ resource "aws_codepipeline" "frontend_pipeline" {
     type     = "S3"
   }
 
-stage {
-  name = "Source"
-  action {
-    name             = "Source"
-    category         = "Source"
-    # Use 'ThirdParty' owner and 'CodeStarSourceConnection' provider for GitHub
-    owner            = "AWS"
-    provider         = "CodeStarSourceConnection"
-    version          = "1"
-    output_artifacts = ["SourceArtifact"]
+  stage {
+    name = "Source"
+    action {
+      name     = "Source"
+      category = "Source"
+      # Use 'ThirdParty' owner and 'CodeStarSourceConnection' provider for GitHub
+      owner            = "AWS"
+      provider         = "CodeStarSourceConnection"
+      version          = "1"
+      output_artifacts = ["SourceArtifact"]
 
-    configuration = {
-      # The ARN of the connection created in connection.tf
-      ConnectionArn    = aws_codestarconnections_connection.github_connection.arn
-      # Your full GitHub repository name (e.g., my-github-username/my-repo-name)
-      FullRepositoryId = var.frontend_full_repo_id
-      # The branch to trigger the pipeline from
-      BranchName       = var.frontend_repo_branch
+      configuration = {
+        # The ARN of the connection created in connection.tf
+        ConnectionArn = aws_codestarconnections_connection.github_connection.arn
+        # Your full GitHub repository name (e.g., my-github-username/my-repo-name)
+        FullRepositoryId = var.frontend_full_repo_id
+        # The branch to trigger the pipeline from
+        BranchName = var.frontend_repo_branch
+      }
     }
   }
-}
 
   stage {
     name = "Build"

@@ -20,7 +20,7 @@ data "terraform_remote_state" "eks_cluster" {
   backend = "s3"
   config = {
     bucket = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket" # !! IMPORTANT: Replace with your actual S3 backend bucket !!
-    key    = "eks/terraform.tfstate" # Assuming EKS cluster state is stored here
+    key    = "eks/terraform.tfstate"                             # Assuming EKS cluster state is stored here
     region = var.aws_region
   }
 }
@@ -30,7 +30,7 @@ data "terraform_remote_state" "ecr_repo" {
   backend = "s3"
   config = {
     bucket = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket" # !! IMPORTANT: Replace with your actual S3 backend bucket !!
-    key    = "ecr/terraform.tfstate" # Assuming ECR state is stored here
+    key    = "ecr/terraform.tfstate"                             # Assuming ECR state is stored here
     region = var.aws_region
   }
 }
@@ -44,8 +44,8 @@ data "aws_caller_identity" "current" {}
 # ----------------
 # This is a dedicated S3 bucket to store artifacts from the backend CodePipeline stages.
 resource "aws_s3_bucket" "backend_codepipeline_artifacts" {
-  bucket = "${var.project_name}-backend-codepipeline-artifacts" # Unique name for backend artifacts
-  force_destroy = true # Useful for a demo to clean up easily
+  bucket        = "${var.project_name}-backend-codepipeline-artifacts" # Unique name for backend artifacts
+  force_destroy = true                                                 # Useful for a demo to clean up easily
   tags = {
     Name = "${var.project_name}-backend-codepipeline-artifacts"
   }
@@ -168,7 +168,7 @@ resource "aws_iam_role_policy" "backend_build_policy" {
           "s3:DeleteObject",
           "s3:ListBucket"
         ],
-        Effect   = "Allow",
+        Effect = "Allow",
         Resource = [
           aws_s3_bucket.backend_codepipeline_artifacts.arn,
           "${aws_s3_bucket.backend_codepipeline_artifacts.arn}/*"
@@ -201,7 +201,7 @@ resource "aws_iam_role_policy" "backend_build_policy" {
           "ssm:GetParameters",
           "sts:AssumeRole"
         ],
-        Effect = "Allow",
+        Effect   = "Allow",
         Resource = data.terraform_remote_state.eks_cluster.outputs.eks_cluster_arn
       }
     ]
@@ -222,10 +222,10 @@ resource "aws_codebuild_project" "backend_build" {
   }
 
   environment {
-    compute_type          = "BUILD_GENERAL1_SMALL"
-    image                 = "aws/codebuild/standard:7.0"
-    type                  = "LINUX_CONTAINER"
-    privileged_mode       = true
+    compute_type                = "BUILD_GENERAL1_SMALL"
+    image                       = "aws/codebuild/standard:7.0"
+    type                        = "LINUX_CONTAINER"
+    privileged_mode             = true
     image_pull_credentials_type = "CODEBUILD"
 
     environment_variable {

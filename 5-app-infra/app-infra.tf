@@ -18,7 +18,7 @@ data "terraform_remote_state" "eks_cluster" {
   backend = "s3"
   config = {
     bucket = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket" # The bucket where '03-eks' stores its state
-    key    = "eks/terraform.tfstate" # The exact key of the '03-eks' state file
+    key    = "eks/terraform.tfstate"                             # The exact key of the '03-eks' state file
     region = "us-east-1"
   }
 }
@@ -47,14 +47,14 @@ resource "aws_s3_bucket_public_access_block" "frontend_ui_public_access_block" {
 resource "aws_s3_bucket_policy" "frontend_ui_policy" {
   bucket = aws_s3_bucket.frontend_ui.id
   policy = jsonencode({
-    "Version": "2012-10-17",
-    "Statement": [
+    "Version" : "2012-10-17",
+    "Statement" : [
       {
-        "Sid": "PublicReadGetObject",
-        "Effect": "Allow",
-        "Principal": "*",
-        "Action": "s3:GetObject",
-        "Resource": [
+        "Sid" : "PublicReadGetObject",
+        "Effect" : "Allow",
+        "Principal" : "*",
+        "Action" : "s3:GetObject",
+        "Resource" : [
           "${aws_s3_bucket.frontend_ui.arn}/*",
         ]
       }
@@ -78,9 +78,9 @@ resource "aws_s3_bucket_cors_configuration" "frontend_ui_cors" {
 # DynamoDB Table
 # -----------------
 resource "aws_dynamodb_table" "messages" {
-  name             = "${var.project_name}-messages-table"
-  billing_mode     = "PAY_PER_REQUEST" # Serverless mode, great for demos
-  hash_key         = "id"
+  name         = "${var.project_name}-messages-table"
+  billing_mode = "PAY_PER_REQUEST" # Serverless mode, great for demos
+  hash_key     = "id"
 
   attribute {
     name = "id"

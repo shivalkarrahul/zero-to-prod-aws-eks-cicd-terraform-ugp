@@ -13,11 +13,11 @@ terraform {
   required_version = "~> 1.5"
 
   backend "s3" {
-    bucket         = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket"
-    key            = "ci-cd/frontend/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    use_lockfile   = true
+    bucket       = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket"
+    key          = "ci-cd/frontend/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
   }
 }
 

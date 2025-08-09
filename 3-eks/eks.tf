@@ -6,9 +6,9 @@
 data "terraform_remote_state" "vpc" {
   backend = "s3"
   config = {
-    bucket         = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket"
-    key            = "vpc/terraform.tfstate"
-    region         = "us-east-1"
+    bucket = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket"
+    key    = "vpc/terraform.tfstate"
+    region = "us-east-1"
   }
 }
 
@@ -16,9 +16,9 @@ data "terraform_remote_state" "vpc" {
 data "terraform_remote_state" "iam" {
   backend = "s3"
   config = {
-    bucket         = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket"
-    key            = "iam/terraform.tfstate"
-    region         = "us-east-1"
+    bucket = "zero-to-prod-aws-eks-cicd-terraform-ugp-s3-bucket"
+    key    = "iam/terraform.tfstate"
+    region = "us-east-1"
   }
 }
 

@@ -35,9 +35,9 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                      = "${var.project_name}-public-subnet-${count.index + 1}"
+    Name                                                = "${var.project_name}-public-subnet-${count.index + 1}"
     "kubernetes.io/cluster/${var.project_name}-cluster" = "owned"
-    "kubernetes.io/role/elb"                  = "1"
+    "kubernetes.io/role/elb"                            = "1"
   }
 }
 
@@ -50,16 +50,16 @@ resource "aws_subnet" "private" {
   map_public_ip_on_launch = false
 
   tags = {
-    Name                                      = "${var.project_name}-private-subnet-${count.index + 1}"
+    Name                                                = "${var.project_name}-private-subnet-${count.index + 1}"
     "kubernetes.io/cluster/${var.project_name}-cluster" = "owned"
-    "kubernetes.io/role/internal-elb"         = "1"
+    "kubernetes.io/role/internal-elb"                   = "1"
   }
 }
 
 # 5. NAT Gateways and EIPs for private subnet internet access.
 # Now we create three NAT gateways for high availability across three AZs.
 resource "aws_eip" "nat" {
-  count = 3
+  count  = 3
   domain = "vpc"
   tags = {
     Name = "${var.project_name}-nat-eip-${count.index + 1}"
