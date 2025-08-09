@@ -13,6 +13,7 @@ resource "aws_ecr_repository" "backend" {
   tags = {
     Name = "${var.project_name}-backend-repository"
   }
+  force_delete = true
 }
 
 # Optional: Lifecycle policy to clean up old, untagged images

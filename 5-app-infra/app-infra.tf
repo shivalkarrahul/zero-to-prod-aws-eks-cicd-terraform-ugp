@@ -10,6 +10,7 @@ resource "aws_s3_bucket" "frontend_ui" {
   tags = {
     Name = "${var.project_name}-frontend-ui-bucket"
   }
+  force_destroy = true
 }
 
 # 2. Use a data source to retrieve output values from the '03-eks' module's state.
