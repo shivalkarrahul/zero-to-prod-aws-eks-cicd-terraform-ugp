@@ -1,4 +1,4 @@
-# `terraform/06-ci-cd/frontend/variables.tf`
+# `terraform/06-ci-cd/1-frontend/variables.tf`
 #
 # Defines the input variables for the frontend CI/CD module.
 
