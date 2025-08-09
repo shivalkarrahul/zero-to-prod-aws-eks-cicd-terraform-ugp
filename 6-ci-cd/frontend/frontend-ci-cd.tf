@@ -229,7 +229,7 @@ resource "aws_codepipeline" "frontend_pipeline" {
   }
 
   stage {
-    name = "Build"
+    name = "BuildAndDeploy"
     action {
       name            = "Build"
       category        = "Build"
