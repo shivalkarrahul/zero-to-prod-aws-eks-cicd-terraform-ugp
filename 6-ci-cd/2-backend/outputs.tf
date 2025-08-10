@@ -86,10 +86,10 @@ output "manual_configmap_update_instructions" {
 
   4. **Add the following YAML snippet** under the **'mapRoles'** section:
 
-     - rolearn: ${aws_iam_role.backend_build_role.arn}
-       username: ugp-backend-build-role
-       groups:
-       - system:masters
+      - rolearn: ${aws_iam_role.backend_build_role.arn}
+        username: ugp-backend-build-role
+        groups:
+        - system:masters
 
   5. Save and close the editor. Your CodeBuild project will now
      have permission to interact with the EKS cluster.

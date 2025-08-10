@@ -122,8 +122,12 @@ resource "aws_iam_role_policy" "frontend_build_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ],
-        Effect   = "Allow",
-        Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/codebuild/${var.project_name}-frontend-build:*"
+        Effect = "Allow",
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:*:log-group:/aws/codebuild/${var.project_name}-frontend-build:*",
+          "arn:aws:logs:${var.aws_region}:*:log-group:/aws/codebuild/${var.project_name}-frontend-deploy:*"
+        ]
+
       },
       {
         Action = [
@@ -195,6 +199,39 @@ resource "aws_codebuild_project" "frontend_build" {
 }
 
 # ----------------
+# New CodeBuild Project for Deployment
+# ----------------
+resource "aws_codebuild_project" "frontend_deploy" {
+  name          = "${var.project_name}-frontend-deploy"
+  service_role  = aws_iam_role.frontend_build_role.arn # Can reuse the same role
+  build_timeout = "10"                                 # Deployment should be fast
+
+  artifacts {
+    type = "CODEPIPELINE"
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_SMALL"
+    image                       = "aws/codebuild/standard:7.0"
+    type                        = "LINUX_CONTAINER"
+    privileged_mode             = false
+    image_pull_credentials_type = "CODEBUILD"
+
+    # Environment variable needed for the deployment buildspec
+    environment_variable {
+      name  = "S3_BUCKET_NAME"
+      value = data.terraform_remote_state.app_infra.outputs.frontend_ui_bucket_name
+    }
+  }
+
+  source {
+    type = "CODEPIPELINE"
+    # This project will use the new deploy buildspec file.
+    buildspec = "deploy.buildspec.yml"
+  }
+}
+
+# ----------------
 # CodePipeline
 # ----------------
 resource "aws_codepipeline" "frontend_pipeline" {
@@ -229,17 +266,35 @@ resource "aws_codepipeline" "frontend_pipeline" {
   }
 
   stage {
-    name = "BuildAndDeploy"
+    name = "Build"
     action {
-      name            = "Build"
-      category        = "Build"
-      owner           = "AWS"
-      provider        = "CodeBuild"
-      input_artifacts = ["SourceArtifact"]
-      version         = "1"
+      name             = "Build"
+      category         = "Build"
+      owner            = "AWS"
+      provider         = "CodeBuild"
+      input_artifacts  = ["SourceArtifact"]
+      output_artifacts = ["BuildArtifact"]
+      version          = "1"
       configuration = {
         ProjectName = aws_codebuild_project.frontend_build.name
       }
     }
   }
+
+  stage {
+    name = "Deploy"
+    action {
+      name            = "Deploy"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      input_artifacts = ["SourceArtifact", "BuildArtifact"]
+      version         = "1"
+      configuration = {
+        ProjectName   = aws_codebuild_project.frontend_deploy.name
+        PrimarySource = "SourceArtifact"
+      }
+    }
+  }
+
 }
