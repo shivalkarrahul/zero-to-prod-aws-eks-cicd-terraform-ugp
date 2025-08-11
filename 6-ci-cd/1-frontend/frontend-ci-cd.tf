@@ -131,7 +131,8 @@ resource "aws_iam_role_policy" "frontend_build_policy" {
         Effect = "Allow",
         Resource = [
           "arn:aws:logs:${var.aws_region}:*:log-group:/aws/codebuild/${var.project_name}-frontend-build:*",
-          "arn:aws:logs:${var.aws_region}:*:log-group:/aws/codebuild/${var.project_name}-frontend-deploy:*"
+          "arn:aws:logs:${var.aws_region}:*:log-group:/aws/codebuild/${var.project_name}-frontend-deploy:*",
+          "arn:aws:logs:${var.aws_region}:*:log-group:/aws/codebuild/${var.project_name}-frontend-lint:*"
         ]
 
       },
@@ -237,6 +238,29 @@ resource "aws_codebuild_project" "frontend_deploy" {
   }
 }
 
+resource "aws_codebuild_project" "frontend_lint" {
+  name          = "${var.project_name}-frontend-lint"
+  service_role  = aws_iam_role.frontend_build_role.arn
+  build_timeout = "20" # Linting should be fast
+
+  artifacts {
+    type = "CODEPIPELINE" # This stage does not produce an artifact.
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_SMALL"
+    image                       = "aws/codebuild/standard:7.0"
+    type                        = "LINUX_CONTAINER"
+    privileged_mode             = false
+    image_pull_credentials_type = "CODEBUILD"
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "buildspec-lint.yml"
+  }
+}
+
 # ----------------
 # CodePipeline
 # ----------------
@@ -271,8 +295,24 @@ resource "aws_codepipeline" "frontend_pipeline" {
     }
   }
 
+  # NEW STAGE: For Linting
   stage {
-    name = "TestAndBuild"
+    name = "Lint"
+    action {
+      name            = "Lint"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      input_artifacts = ["SourceArtifact"]
+      version         = "1"
+      configuration = {
+        ProjectName = aws_codebuild_project.frontend_lint.name
+      }
+    }
+  }
+
+  stage {
+    name = "Build"
     action {
       name             = "Build"
       category         = "Build"
