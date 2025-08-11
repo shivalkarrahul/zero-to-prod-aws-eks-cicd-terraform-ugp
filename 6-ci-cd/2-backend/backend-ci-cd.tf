@@ -159,7 +159,7 @@ resource "aws_iam_role_policy" "backend_build_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ],
-        Effect   = "Allow",
+        Effect = "Allow",
         Resource = [
           "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.project_name}-backend-lint:*",
           "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.project_name}-backend-build:*",
@@ -403,13 +403,13 @@ resource "aws_codepipeline" "backend_pipeline" {
   stage {
     name = "Build"
     action {
-      name            = "Build"
-      category        = "Build"
-      owner           = "AWS"
-      provider        = "CodeBuild"
-      input_artifacts = ["SourceArtifact"]
+      name             = "Build"
+      category         = "Build"
+      owner            = "AWS"
+      provider         = "CodeBuild"
+      input_artifacts  = ["SourceArtifact"]
       output_artifacts = ["BuildArtifact"] # <-- ADD THIS LINE
-      version         = "1"
+      version          = "1"
       configuration = {
         ProjectName = aws_codebuild_project.backend_build.name
       }
@@ -441,11 +441,11 @@ resource "aws_codepipeline" "backend_pipeline" {
       input_artifacts = ["SourceArtifact", "BuildArtifact"]
       version         = "1"
       configuration = {
-        ProjectName = aws_codebuild_project.backend_deploy_project.name
+        ProjectName   = aws_codebuild_project.backend_deploy_project.name
         PrimarySource = "SourceArtifact"
       }
     }
-  }    
+  }
 
   tags = {
     Name = "${var.project_name}-backend-pipeline"
