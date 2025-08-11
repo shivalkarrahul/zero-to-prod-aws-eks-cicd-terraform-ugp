@@ -37,5 +37,5 @@ variable "notification_email" {
   type        = string
   # A default value can be set for a test environment, but for a real-world
   # production setup, you should provide this value via a tfvars file.
-  default     = "rahulshivalkar9665196@gmail.com"
+  default = "rahulshivalkar9665196@gmail.com"
 }

@@ -95,7 +95,7 @@ resource "aws_iam_role_policy" "frontend_pipeline_policy" {
         Action   = "sns:Publish",
         Effect   = "Allow",
         Resource = aws_sns_topic.frontend_approval_topic.arn
-      }      
+      }
     ]
   })
 }
@@ -390,9 +390,9 @@ resource "aws_sns_topic_subscription" "frontend_approval_email_subscription" {
 resource "aws_codestarnotifications_notification_rule" "frontend_pipeline_notifications" {
   name     = "${var.project_name}-frontend-pipeline-events"
   resource = aws_codepipeline.frontend_pipeline.arn
-  
+
   detail_type = "BASIC"
-  
+
   target {
     address = aws_sns_topic.frontend_approval_topic.arn
     type    = "SNS"
@@ -410,9 +410,9 @@ resource "aws_codestarnotifications_notification_rule" "frontend_pipeline_notifi
     "codepipeline-pipeline-manual-approval-succeeded",
     "codepipeline-pipeline-manual-approval-failed",
   ]
-  
+
   status = "ENABLED"
-  
+
   tags = {
     Name = "${var.project_name}-frontend-pipeline-events"
   }
@@ -432,12 +432,12 @@ data "aws_iam_policy_document" "combined_sns_publish_policy" {
     sid     = "AllowCodePipelinePublish"
     effect  = "Allow"
     actions = ["sns:Publish"]
-    
+
     principals {
       type        = "Service"
       identifiers = ["codepipeline.amazonaws.com"]
     }
-    
+
     resources = [aws_sns_topic.frontend_approval_topic.arn]
   }
 
@@ -445,12 +445,12 @@ data "aws_iam_policy_document" "combined_sns_publish_policy" {
     sid     = "AllowCodeStarNotificationsPublish"
     effect  = "Allow"
     actions = ["sns:Publish"]
-    
+
     principals {
       type        = "Service"
       identifiers = ["codestar-notifications.amazonaws.com"]
     }
-    
+
     resources = [aws_sns_topic.frontend_approval_topic.arn]
   }
 }
