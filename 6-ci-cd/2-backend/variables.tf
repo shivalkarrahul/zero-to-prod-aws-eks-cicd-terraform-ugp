@@ -43,3 +43,11 @@ variable "backend_helm_release_name" {
   type        = string
   default     = "ugp-backend"
 }
+
+variable "notification_email" {
+  description = "The email address to receive manual approval notifications."
+  type        = string
+  # A default value can be set for a test environment, but for a real-world
+  # production setup, you should provide this value via a tfvars file.
+  default = "rahulshivalkar9665196@gmail.com"
+}

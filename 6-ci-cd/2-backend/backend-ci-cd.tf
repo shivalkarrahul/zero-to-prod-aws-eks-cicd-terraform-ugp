@@ -113,7 +113,13 @@ resource "aws_iam_role_policy" "backend_pipeline_policy" {
           "codebuild:BatchGetBuilds",
         ],
         Effect   = "Allow",
-        Resource = aws_codebuild_project.backend_build.arn # Specific to this CodeBuild project
+        Resource = "*"
+      },
+      # NEW STATEMENT: Add permission to publish to the SNS topic for manual approval
+      {
+        Action   = "sns:Publish",
+        Effect   = "Allow",
+        Resource = aws_sns_topic.backend_approval_topic.arn
       }
     ]
   })
@@ -154,7 +160,11 @@ resource "aws_iam_role_policy" "backend_build_policy" {
           "logs:PutLogEvents",
         ],
         Effect   = "Allow",
-        Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.project_name}-backend-build:*"
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.project_name}-backend-lint:*",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.project_name}-backend-build:*",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.project_name}-backend-deploy:*"
+        ]
       },
       {
         # Permissions for S3 artifacts (input and output)
@@ -206,6 +216,36 @@ resource "aws_iam_role_policy" "backend_build_policy" {
       }
     ]
   })
+}
+
+# ----------------
+# New CodeBuild Project (Linting)
+# ----------------
+resource "aws_codebuild_project" "backend_lint_project" {
+  name          = "${var.project_name}-backend-lint"
+  service_role  = aws_iam_role.backend_build_role.arn
+  build_timeout = "10" # minutes
+
+  artifacts {
+    type = "CODEPIPELINE"
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_SMALL"
+    image                       = "aws/codebuild/standard:7.0"
+    type                        = "LINUX_CONTAINER"
+    privileged_mode             = false # No Docker required for linting
+    image_pull_credentials_type = "CODEBUILD"
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "buildspec-lint.yml" # Pointing to the new linting buildspec
+  }
+
+  tags = {
+    Name = "${var.project_name}-backend-lint"
+  }
 }
 
 
@@ -269,6 +309,53 @@ resource "aws_codebuild_project" "backend_build" {
 }
 
 # ----------------
+# CodeBuild Project (Deployment)
+# ----------------
+resource "aws_codebuild_project" "backend_deploy_project" {
+  name          = "${var.project_name}-backend-deploy"
+  service_role  = aws_iam_role.backend_build_role.arn
+  build_timeout = "20" # minutes
+
+  artifacts {
+    type = "CODEPIPELINE"
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_SMALL"
+    image                       = "aws/codebuild/standard:7.0"
+    type                        = "LINUX_CONTAINER"
+    privileged_mode             = true # Required for kubectl and helm
+    image_pull_credentials_type = "CODEBUILD"
+
+    environment_variable {
+      name  = "EKS_CLUSTER_NAME"
+      value = data.terraform_remote_state.eks_cluster.outputs.eks_cluster_name
+    }
+    environment_variable {
+      name  = "KUBERNETES_NAMESPACE"
+      value = var.kubernetes_namespace
+    }
+    environment_variable {
+      name  = "HELM_CHART_PATH"
+      value = var.backend_helm_chart_path
+    }
+    environment_variable {
+      name  = "HELM_RELEASE_NAME"
+      value = var.backend_helm_release_name
+    }
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "deploy.buildspec.yml"
+  }
+
+  tags = {
+    Name = "${var.project_name}-backend-deploy"
+  }
+}
+
+# ----------------
 # CodePipeline
 # ----------------
 resource "aws_codepipeline" "backend_pipeline" {
@@ -299,13 +386,29 @@ resource "aws_codepipeline" "backend_pipeline" {
   }
 
   stage {
-    name = "BuildAndDeploy"
+    name = "Lint"
+    action {
+      name            = "Lint"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      input_artifacts = ["SourceArtifact"]
+      version         = "1"
+      configuration = {
+        ProjectName = aws_codebuild_project.backend_lint_project.name
+      }
+    }
+  }
+
+  stage {
+    name = "Build"
     action {
       name            = "Build"
       category        = "Build"
       owner           = "AWS"
       provider        = "CodeBuild"
       input_artifacts = ["SourceArtifact"]
+      output_artifacts = ["BuildArtifact"] # <-- ADD THIS LINE
       version         = "1"
       configuration = {
         ProjectName = aws_codebuild_project.backend_build.name
@@ -313,7 +416,131 @@ resource "aws_codepipeline" "backend_pipeline" {
     }
   }
 
+  stage {
+    name = "ManualApproval"
+    action {
+      name     = "ApproveDeployment"
+      category = "Approval"
+      owner    = "AWS"
+      provider = "Manual"
+      version  = "1"
+      configuration = {
+        NotificationArn = aws_sns_topic.backend_approval_topic.arn
+        CustomData      = "Approval required for the latest backend build. Verify the build artifacts before proceeding with deployment to production."
+      }
+    }
+  }
+
+  stage {
+    name = "Deploy"
+    action {
+      name            = "Deploy"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      input_artifacts = ["SourceArtifact", "BuildArtifact"]
+      version         = "1"
+      configuration = {
+        ProjectName = aws_codebuild_project.backend_deploy_project.name
+        PrimarySource = "SourceArtifact"
+      }
+    }
+  }    
+
   tags = {
     Name = "${var.project_name}-backend-pipeline"
   }
+}
+
+# ----------------
+# SNS Topic and Subscription for Manual Approval
+# ----------------
+# This SNS topic will be used to send notifications when the pipeline reaches the
+# manual approval stage.
+resource "aws_sns_topic" "backend_approval_topic" {
+  name = "${var.project_name}-backend-approval"
+  tags = {
+    Name = "${var.project_name}-backend-approval"
+  }
+}
+
+# This resource subscribes the specified email to the SNS topic.
+resource "aws_sns_topic_subscription" "backend_approval_email_subscription" {
+  topic_arn = aws_sns_topic.backend_approval_topic.arn
+  protocol  = "email"
+  endpoint  = var.notification_email
+}
+
+# ----------------
+# CodeStar Notification Rule for All Pipeline Events
+# ----------------
+resource "aws_codestarnotifications_notification_rule" "backend_pipeline_notifications" {
+  name     = "${var.project_name}-backend-pipeline-events"
+  resource = aws_codepipeline.backend_pipeline.arn
+
+  detail_type = "BASIC"
+
+  target {
+    address = aws_sns_topic.backend_approval_topic.arn
+    type    = "SNS"
+  }
+
+  event_type_ids = [
+    # Pipeline Execution Events
+    "codepipeline-pipeline-pipeline-execution-started",
+    "codepipeline-pipeline-pipeline-execution-succeeded",
+    "codepipeline-pipeline-pipeline-execution-failed",
+    "codepipeline-pipeline-pipeline-execution-superseded",
+
+    # Manual Approval Events
+    "codepipeline-pipeline-manual-approval-needed",
+    "codepipeline-pipeline-manual-approval-succeeded",
+    "codepipeline-pipeline-manual-approval-failed",
+  ]
+
+  status = "ENABLED"
+
+  tags = {
+    Name = "${var.project_name}-backend-pipeline-events"
+  }
+}
+
+
+# ----------------
+# Combined IAM Policy for the SNS Topic
+# ----------------
+# This data source defines a single policy document that grants BOTH
+# CodePipeline and CodeStar Notifications the permission to publish.
+data "aws_iam_policy_document" "combined_backend_sns_publish_policy" {
+  statement {
+    sid     = "AllowCodePipelinePublish"
+    effect  = "Allow"
+    actions = ["sns:Publish"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["codepipeline.amazonaws.com"]
+    }
+
+    resources = [aws_sns_topic.backend_approval_topic.arn]
+  }
+
+  statement {
+    sid     = "AllowCodeStarNotificationsPublish"
+    effect  = "Allow"
+    actions = ["sns:Publish"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["codestar-notifications.amazonaws.com"]
+    }
+
+    resources = [aws_sns_topic.backend_approval_topic.arn]
+  }
+}
+
+# This resource attaches the complete, combined policy to the SNS topic.
+resource "aws_sns_topic_policy" "backend_approval_topic_policy" {
+  arn    = aws_sns_topic.backend_approval_topic.arn
+  policy = data.aws_iam_policy_document.combined_backend_sns_publish_policy.json
 }
