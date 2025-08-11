@@ -89,7 +89,13 @@ resource "aws_iam_role_policy" "frontend_pipeline_policy" {
         ],
         Effect   = "Allow",
         Resource = "*"
-      }
+      },
+      # NEW STATEMENT: Add permission to publish to the SNS topic for manual approval
+      {
+        Action   = "sns:Publish",
+        Effect   = "Allow",
+        Resource = aws_sns_topic.frontend_approval_topic.arn
+      }      
     ]
   })
 }
@@ -266,7 +272,7 @@ resource "aws_codepipeline" "frontend_pipeline" {
   }
 
   stage {
-    name = "Build"
+    name = "TestAndBuild"
     action {
       name             = "Build"
       category         = "Build"
@@ -280,6 +286,25 @@ resource "aws_codepipeline" "frontend_pipeline" {
       }
     }
   }
+
+  # NEW MANUAL APPROVAL STAGE
+  stage {
+    name = "ManualApproval"
+    action {
+      name     = "ApproveDeployment"
+      category = "Approval"
+      owner    = "AWS"
+      provider = "Manual"
+      version  = "1"
+
+      configuration = {
+        # This sends a notification to the SNS topic we just created.
+        NotificationArn = aws_sns_topic.frontend_approval_topic.arn
+        CustomData      = "Approval required for the latest frontend build. Verify the build artifacts before proceeding with deployment to production."
+      }
+    }
+  }
+
 
   stage {
     name = "Deploy"
@@ -297,4 +322,102 @@ resource "aws_codepipeline" "frontend_pipeline" {
     }
   }
 
+}
+
+# ----------------
+# SNS Topic and Subscription for Manual Approval
+# ----------------
+# This SNS topic will be used to send notifications when the pipeline reaches the
+# manual approval stage.
+resource "aws_sns_topic" "frontend_approval_topic" {
+  name = "${var.project_name}-frontend-approval"
+  tags = {
+    Name = "${var.project_name}-frontend-approval"
+  }
+}
+
+# This resource subscribes the specified email to the SNS topic.
+# Note: You will need to manually confirm this subscription via the email sent by AWS.
+resource "aws_sns_topic_subscription" "frontend_approval_email_subscription" {
+  topic_arn = aws_sns_topic.frontend_approval_topic.arn
+  protocol  = "email"
+  endpoint  = var.notification_email
+}
+
+# ----------------
+# CodeStar Notification Rule for All Pipeline Events
+# ----------------
+resource "aws_codestarnotifications_notification_rule" "frontend_pipeline_notifications" {
+  name     = "${var.project_name}-frontend-pipeline-events"
+  resource = aws_codepipeline.frontend_pipeline.arn
+  
+  detail_type = "BASIC"
+  
+  target {
+    address = aws_sns_topic.frontend_approval_topic.arn
+    type    = "SNS"
+  }
+
+  event_type_ids = [
+    # Pipeline Execution Events
+    "codepipeline-pipeline-pipeline-execution-started",
+    "codepipeline-pipeline-pipeline-execution-succeeded",
+    "codepipeline-pipeline-pipeline-execution-failed",
+    "codepipeline-pipeline-pipeline-execution-superseded",
+
+    # Manual Approval Events
+    "codepipeline-pipeline-manual-approval-needed",
+    "codepipeline-pipeline-manual-approval-succeeded",
+    "codepipeline-pipeline-manual-approval-failed",
+  ]
+  
+  status = "ENABLED"
+  
+  tags = {
+    Name = "${var.project_name}-frontend-pipeline-events"
+  }
+}
+
+# `terraform/06-ci-cd/frontend/frontend-ci-cd.tf`
+
+# ... your existing resources ...
+
+# ----------------
+# Combined IAM Policy for the SNS Topic
+# ----------------
+# This data source defines a single policy document that grants BOTH
+# CodePipeline and CodeStar Notifications the permission to publish.
+data "aws_iam_policy_document" "combined_sns_publish_policy" {
+  statement {
+    sid     = "AllowCodePipelinePublish"
+    effect  = "Allow"
+    actions = ["sns:Publish"]
+    
+    principals {
+      type        = "Service"
+      identifiers = ["codepipeline.amazonaws.com"]
+    }
+    
+    resources = [aws_sns_topic.frontend_approval_topic.arn]
+  }
+
+  statement {
+    sid     = "AllowCodeStarNotificationsPublish"
+    effect  = "Allow"
+    actions = ["sns:Publish"]
+    
+    principals {
+      type        = "Service"
+      identifiers = ["codestar-notifications.amazonaws.com"]
+    }
+    
+    resources = [aws_sns_topic.frontend_approval_topic.arn]
+  }
+}
+
+# This resource attaches the complete, combined policy to the SNS topic.
+# This prevents overwriting any permissions.
+resource "aws_sns_topic_policy" "frontend_approval_topic_policy" {
+  arn    = aws_sns_topic.frontend_approval_topic.arn
+  policy = data.aws_iam_policy_document.combined_sns_publish_policy.json
 }

@@ -42,3 +42,32 @@ You will also need to perform these same steps for the backend connection.
   ==============================================================
   EOT
 }
+
+# Add a new output block to instruct the user to confirm the SNS subscription.
+output "manual_approval_setup" {
+  description = "Manual steps required for the pipeline's email notifications."
+  value       = <<-EOT
+==============================================================
+MANUAL STEP REQUIRED: CONFIRM SNS EMAIL SUBSCRIPTION
+==============================================================
+Your Terraform configuration has created an SNS topic and an
+email subscription for manual approval notifications.
+
+To receive these notifications, you must perform a one-time
+manual confirmation:
+
+1. **Check your email.** An email from "AWS Notifications"
+   has been sent to your provided email address:
+   "${var.notification_email}"
+
+2. **Confirm the subscription.** Open this email and click
+   the "Confirm subscription" link.
+
+Once confirmed, the status of the subscription in the AWS
+console will change from "PendingConfirmation" to "Confirmed",
+and you will begin receiving email notifications when the
+pipeline is waiting for your approval.
+
+==============================================================
+EOT
+}
