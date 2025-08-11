@@ -46,7 +46,8 @@ resource "aws_s3_bucket_public_access_block" "frontend_ui_public_access_block" {
 
 # This policy grants read-only access to all objects in the bucket
 resource "aws_s3_bucket_policy" "frontend_ui_policy" {
-  bucket = aws_s3_bucket.frontend_ui.id
+  depends_on = [aws_s3_bucket_public_access_block.frontend_ui_public_access_block]
+  bucket     = aws_s3_bucket.frontend_ui.id
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
